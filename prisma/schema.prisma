@@ -1,0 +1,136 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum ProjectStatus {
+  DRAFT
+  READY
+  PROCESSING
+  COMPLETED
+}
+
+enum ValidationStatus {
+  VALID
+  INVALID
+}
+
+enum GenerationStatus {
+  PENDING
+  GENERATED
+  FAILED
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+model User {
+  id           String      @id @default(cuid())
+  name         String
+  email        String      @unique
+  passwordHash String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  projects     Project[]
+  smtpConfig   SMTPConfig?
+}
+
+model Project {
+  id           String        @id @default(cuid())
+  userId       String
+  name         String
+  eventName    String
+  description  String?
+  status       ProjectStatus @default(DRAFT)
+
+  // Spreadsheet info
+  spreadsheetPath String?
+  spreadsheetName String?
+  sheetName       String?
+  emailColumn     String?
+  nameColumn      String?
+  referenceColumn String?
+
+  // Email customization
+  emailSubject String?
+  emailBody    String?
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template     Template?
+  participants Participant[]
+  certificates Certificate[]
+
+  @@index([userId])
+}
+
+model Template {
+  id               String   @id @default(cuid())
+  projectId        String   @unique
+  filePath         String
+  originalFileName String
+  pageNumber       Int      @default(1)
+  pageWidth        Float
+  pageHeight       Float
+  fieldMapping     Json?
+  createdAt        DateTime @default(now())
+
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Participant {
+  id               String           @id @default(cuid())
+  projectId        String
+  name             String
+  email            String
+  rowData          Json
+  validationStatus ValidationStatus @default(VALID)
+  createdAt        DateTime         @default(now())
+
+  project          Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  certificate      Certificate?
+
+  @@index([projectId])
+}
+
+model SMTPConfig {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  smtpHost          String
+  smtpPort          Int
+  secure            Boolean  @default(false)
+  smtpUsername      String
+  encryptedPassword String
+  senderName        String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Certificate {
+  id               String           @id @default(cuid())
+  projectId        String
+  participantId    String           @unique
+  filePath         String?
+  referenceNumber  String?
+  generationStatus GenerationStatus @default(PENDING)
+  emailStatus      EmailStatus      @default(PENDING)
+  emailError       String?
+  createdAt        DateTime         @default(now())
+
+  project          Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  participant      Participant      @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
