@@ -41,7 +41,7 @@ export function NewProjectForm() {
         return;
       }
 
-      router.push(`/projects/${data.id}`);
+      router.push(`/projects/${data.id}?step=2`);
       router.refresh();
     } catch {
       setError("Network error. Please try again.");
