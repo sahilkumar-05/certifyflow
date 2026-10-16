@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRef, useState } from "react";
@@ -14,6 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { MAX_PDF_SIZE_BYTES, MAX_PDF_SIZE_MB } from "@/lib/constants";
+import { uploadWithProgress } from "@/lib/upload-client";
 
 // pdf.js needs the browser, so the preview is never rendered on the server.
 const PdfPreview = dynamic(
@@ -34,43 +36,6 @@ type TemplateInfo = {
   pageWidth: number;
   pageHeight: number;
 };
-
-type UploadResult = {
-  status: number;
-  body: { error?: string; pageNumber?: number };
-};
-
-// fetch() cannot report upload progress, so XMLHttpRequest is used here.
-function uploadWithProgress(
-  url: string,
-  file: File,
-  onProgress: (percent: number) => void
-): Promise<UploadResult> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", url);
-
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) {
-        onProgress(Math.round((e.loaded / e.total) * 100));
-      }
-    };
-    xhr.onload = () => {
-      let body: UploadResult["body"] = {};
-      try {
-        body = JSON.parse(xhr.responseText);
-      } catch {
-        // Non-JSON response: keep the empty body.
-      }
-      resolve({ status: xhr.status, body });
-    };
-    xhr.onerror = () => reject(new Error("Network error"));
-
-    const form = new FormData();
-    form.append("file", file);
-    xhr.send(form);
-  });
-}
 
 type Props = { projectId: string; template: TemplateInfo | null };
 
@@ -95,18 +60,21 @@ export function TemplateStep({ projectId, template }: Props) {
       setError("Only PDF files are accepted.");
       return;
     }
+
     if (file.size === 0) {
       setError("The file is empty.");
       return;
     }
+
     if (file.size > MAX_PDF_SIZE_BYTES) {
       setError(`PDF must be ${MAX_PDF_SIZE_MB} MB or smaller.`);
       return;
     }
 
     setProgress(0);
+
     try {
-      const result = await uploadWithProgress(
+      const result = await uploadWithProgress<{ pageNumber?: number }>(
         `/api/projects/${projectId}/template`,
         file,
         setProgress
@@ -143,12 +111,14 @@ export function TemplateStep({ projectId, template }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pageNumber: next }),
       });
+
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         setPage(previous);
         setError(data.error ?? "Could not change the page.");
         return;
       }
+
       router.refresh();
     } catch {
       setPage(previous);
@@ -197,6 +167,7 @@ export function TemplateStep({ projectId, template }: Props) {
           MB). The original file is never modified.
         </CardDescription>
       </CardHeader>
+
       <CardContent className="space-y-5">
         {fileInput}
 
@@ -222,9 +193,11 @@ export function TemplateStep({ projectId, template }: Props) {
             <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
               <FileUp className="h-6 w-6" />
             </span>
+
             <span className="text-sm font-medium text-gray-900">
               Click to choose a PDF, or drag and drop it here
             </span>
+
             <span className="text-xs text-gray-500">
               Single-page certificates work best
             </span>
@@ -235,6 +208,7 @@ export function TemplateStep({ projectId, template }: Props) {
               <p className="text-sm font-medium text-gray-900">
                 {template.originalFileName}
               </p>
+
               <p className="text-xs text-gray-500">
                 Page size: {template.pageWidth} x {template.pageHeight} pt (
                 {template.pageWidth >= template.pageHeight
@@ -243,6 +217,7 @@ export function TemplateStep({ projectId, template }: Props) {
                 )
               </p>
             </div>
+
             <Button
               variant="outline"
               size="sm"
@@ -255,6 +230,7 @@ export function TemplateStep({ projectId, template }: Props) {
         )}
 
         {progressBar}
+
         {error && <p className="text-sm text-red-600">{error}</p>}
 
         {template && (
@@ -270,9 +246,11 @@ export function TemplateStep({ projectId, template }: Props) {
                   <ChevronLeft className="h-4 w-4" />
                   Previous
                 </Button>
+
                 <span className="text-sm text-gray-700">
                   Template page {page} of {numPages}
                 </span>
+
                 <Button
                   variant="outline"
                   size="sm"
@@ -295,13 +273,21 @@ export function TemplateStep({ projectId, template }: Props) {
           </div>
         )}
 
-        <div className="flex justify-start pt-2">
+               <div className="flex items-center justify-between pt-2">
           <Link
             href={`/projects/${projectId}?step=1`}
             className={buttonVariants({ variant: "outline" })}
           >
             Back
           </Link>
+          {template && (
+            <Link
+              href={`/projects/${projectId}?step=3`}
+              className={buttonVariants()}
+            >
+              Continue
+            </Link>
+          )}
         </div>
       </CardContent>
     </Card>

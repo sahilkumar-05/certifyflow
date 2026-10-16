@@ -8,4 +8,4 @@ export const WIZARD_STEPS = [
 ] as const;
 
 // Increase this number as each new step gets built.
-export const LAST_AVAILABLE_STEP = 2;
+export const LAST_AVAILABLE_STEP = 3;

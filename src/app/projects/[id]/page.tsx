@@ -3,11 +3,18 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getSessionUserId } from "@/lib/session";
 import { LAST_AVAILABLE_STEP } from "@/lib/wizard-steps";
+import { SpreadsheetValidationError } from "@/lib/excel/types";
 import { getOwnedProject } from "@/services/project.service";
+import {
+  getParticipantCounts,
+  getSheetInfo,
+} from "@/services/participant.service";
+import type { SheetInfo } from "@/types/spreadsheet";
 import { Badge } from "@/components/ui/badge";
 import { WizardStepper } from "@/components/projects/wizard-stepper";
 import { ProjectInfoStep } from "@/components/projects/project-info-step";
 import { TemplateStep } from "@/components/projects/template-step";
+import { SpreadsheetStep } from "@/components/projects/spreadsheet-step";
 
 export default async function ProjectPage({
   params,
@@ -33,10 +40,28 @@ export default async function ProjectPage({
       ? requested
       : 1;
 
+  const counts = await getParticipantCounts(project.id);
+  const savedCounts = counts.valid + counts.invalid > 0 ? counts : null;
+
   const completed: Record<number, boolean> = {
     1: true,
     2: !!project.template,
+    3: counts.valid > 0,
   };
+
+  // The spreadsheet is only parsed when the spreadsheet step is open.
+  let sheetInfo: SheetInfo | null = null;
+  let sheetError = "";
+  if (current === 3) {
+    try {
+      sheetInfo = await getSheetInfo(userId, project.id);
+    } catch (err) {
+      sheetError =
+        err instanceof SpreadsheetValidationError
+          ? err.message
+          : "The saved spreadsheet could not be loaded. Please upload it again.";
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -77,6 +102,15 @@ export default async function ProjectPage({
 
       {current === 2 && (
         <TemplateStep projectId={project.id} template={project.template} />
+      )}
+
+      {current === 3 && (
+        <SpreadsheetStep
+          projectId={project.id}
+          initialInfo={sheetInfo}
+          initialError={sheetError}
+          savedCounts={savedCounts}
+        />
       )}
     </div>
   );
