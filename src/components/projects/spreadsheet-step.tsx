@@ -588,10 +588,7 @@ export function SpreadsheetStep({
         {savedMessage && (
           <div className="flex items-start gap-2 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">
             <Check className="mt-0.5 h-4 w-4 shrink-0" />
-            <p>
-              {savedMessage} The field mapping step will be available in the
-              next update.
-            </p>
+            <p>{savedMessage}</p>
           </div>
         )}
 
@@ -602,11 +599,21 @@ export function SpreadsheetStep({
           >
             Back
           </Link>
-          {hasData && (
-            <Button onClick={handleSave} disabled={!canSave}>
-              {saving ? "Saving..." : "Save Participants"}
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {hasData && (
+              <Button onClick={handleSave} disabled={!canSave}>
+                {saving ? "Saving..." : "Save Participants"}
+              </Button>
+            )}
+            {savedMessage && (
+              <Link
+                href={`/projects/${projectId}?step=4`}
+                className={buttonVariants()}
+              >
+                Continue
+              </Link>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

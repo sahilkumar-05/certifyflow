@@ -4,17 +4,29 @@ import { ArrowLeft } from "lucide-react";
 import { getSessionUserId } from "@/lib/session";
 import { LAST_AVAILABLE_STEP } from "@/lib/wizard-steps";
 import { SpreadsheetValidationError } from "@/lib/excel/types";
+import { parseStoredMapping } from "@/lib/mapping/parse";
 import { getOwnedProject } from "@/services/project.service";
 import {
   getParticipantCounts,
   getSheetInfo,
 } from "@/services/participant.service";
+import { getMappingContext } from "@/services/mapping.service";
 import type { SheetInfo } from "@/types/spreadsheet";
+import type { MappingContextResult } from "@/types/mapping";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { WizardStepper } from "@/components/projects/wizard-stepper";
 import { ProjectInfoStep } from "@/components/projects/project-info-step";
 import { TemplateStep } from "@/components/projects/template-step";
 import { SpreadsheetStep } from "@/components/projects/spreadsheet-step";
+import { MappingEditor } from "@/components/certificate-editor/mapping-editor";
 
 export default async function ProjectPage({
   params,
@@ -47,6 +59,7 @@ export default async function ProjectPage({
     1: true,
     2: !!project.template,
     3: counts.valid > 0,
+    4: parseStoredMapping(project.template?.fieldMapping).fields.length > 0,
   };
 
   // The spreadsheet is only parsed when the spreadsheet step is open.
@@ -62,6 +75,27 @@ export default async function ProjectPage({
           : "The saved spreadsheet could not be loaded. Please upload it again.";
     }
   }
+
+  // The mapping data is only loaded when the mapping step is open.
+  let mappingResult: MappingContextResult | null = null;
+  let mappingError = "";
+  if (current === 4) {
+    try {
+      mappingResult = await getMappingContext(userId, project.id);
+    } catch (err) {
+      mappingError =
+        err instanceof SpreadsheetValidationError
+          ? err.message
+          : "The editor data could not be loaded. Please try again.";
+    }
+  }
+
+  const blocked = mappingResult && !mappingResult.ok ? mappingResult.reason : null;
+  const blockedMessage =
+    mappingError ||
+    (blocked === "template"
+      ? "Upload a certificate template first."
+      : "Save at least one valid participant first.");
 
   return (
     <div className="space-y-6">
@@ -112,6 +146,26 @@ export default async function ProjectPage({
           savedCounts={savedCounts}
         />
       )}
+
+      {current === 4 &&
+        (mappingResult?.ok ? (
+          <MappingEditor projectId={project.id} context={mappingResult.data} />
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Field Mapping</CardTitle>
+              <CardDescription>{blockedMessage}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link
+                href={`/projects/${project.id}?step=${blocked === "template" ? 2 : 3}`}
+                className={buttonVariants()}
+              >
+                {blocked === "template" ? "Go to Template" : "Go to Spreadsheet"}
+              </Link>
+            </CardContent>
+          </Card>
+        ))}
     </div>
   );
 }

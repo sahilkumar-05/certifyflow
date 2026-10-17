@@ -12,7 +12,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
         userName={session.user.name ?? "User"}
         userEmail={session.user.email ?? ""}
       />
-      <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+      <main className="mx-auto max-w-7xl px-4 py-8">{children}</main>
     </div>
   );
 }

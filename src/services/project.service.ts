@@ -28,6 +28,7 @@ export async function getOwnedProject(projectId: string, userId: string) {
           pageNumber: true,
           pageWidth: true,
           pageHeight: true,
+          fieldMapping: true,
         },
       },
       _count: { select: { participants: true, certificates: true } },
