@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { PDFDocument } from "pdf-lib";
 import type { FieldConfig } from "@/lib/validation/mapping";
 import { renderCertificate } from "./render";
+import fs from "node:fs";
+import path from "node:path";
+import fontkit from "@pdf-lib/fontkit";
 
 const W = 600;
 const H = 400;
@@ -80,14 +83,26 @@ describe("renderCertificate", () => {
     expect(Math.abs(c.transform[4] + c.width - 300)).toBeLessThan(0.6);
   });
 
-  it("puts the baseline inside the line box", async () => {
+    it("puts the baseline where the editor expects it", async () => {
+    const file = fs.readFileSync(
+      path.join(process.cwd(), "public", "fonts", "open-sans-latin-400-normal.woff")
+    );
+    const f = fontkit.create(new Uint8Array(file)) as unknown as {
+      ascent: number;
+      descent: number;
+      unitsPerEm: number;
+    };
+    const a = f.ascent / f.unitsPerEm;
+    const d = Math.abs(f.descent) / f.unitsPerEm;
+    const expected = 30 * (0.5 + (a - d) / 2);
+
     const { bytes } = await render([field({ y: 0.5 })], { A: "Baseline" });
     const [item] = await readText(bytes);
     const fromTop = H - item.transform[5] - 0.5 * H;
-    expect(fromTop).toBeGreaterThan(30 * 0.7);
-    expect(fromTop).toBeLessThan(30 * 1.0);
-  });
 
+    expect(Math.abs(fromTop - expected)).toBeLessThan(0.5);
+  });
+  
   it("shrinks text to the maximum width", async () => {
     const { bytes } = await render(
       [field({ width: 0.2, alignment: "left" })],

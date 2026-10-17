@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import fontkit from "@pdf-lib/fontkit";
 import type { PDFDocument, PDFFont } from "pdf-lib";
 import { getFont, type FontId } from "@/lib/fonts";
 
@@ -15,6 +16,8 @@ export type LoadedFont = {
 };
 
 type Metrics = { ascent: number; descent: number; chars: Set<number> };
+
+type FontkitFont = { ascent: number; descent: number; unitsPerEm: number };
 
 const bytesCache = new Map<string, Promise<Uint8Array>>();
 const metricsCache = new Map<FontId, Metrics>();
@@ -45,11 +48,11 @@ export async function embedFonts(
 
     let metrics = metricsCache.get(id);
     if (!metrics) {
-      const ascent = pdfFont.heightAtSize(1, { descender: false });
-      const total = pdfFont.heightAtSize(1);
+      // hhea ascent/descent from the font file, the same values the browser uses.
+      const fk = fontkit.create(bytes) as unknown as FontkitFont;
       metrics = {
-        ascent,
-        descent: total - ascent,
+        ascent: fk.ascent / fk.unitsPerEm,
+        descent: Math.abs(fk.descent) / fk.unitsPerEm,
         chars: new Set(pdfFont.getCharacterSet()),
       };
       metricsCache.set(id, metrics);

@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { getSessionUserId } from "@/lib/session";
+import { auth } from "@/lib/auth";
 import { LAST_AVAILABLE_STEP } from "@/lib/wizard-steps";
 import { SpreadsheetValidationError } from "@/lib/excel/types";
 import { parseStoredMapping } from "@/lib/mapping/parse";
@@ -11,8 +11,10 @@ import {
   getSheetInfo,
 } from "@/services/participant.service";
 import { getMappingContext } from "@/services/mapping.service";
+import { getEmailContext } from "@/services/email.service";
 import type { SheetInfo } from "@/types/spreadsheet";
 import type { MappingContextResult } from "@/types/mapping";
+import type { EmailContextResult } from "@/types/email";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -27,6 +29,7 @@ import { ProjectInfoStep } from "@/components/projects/project-info-step";
 import { TemplateStep } from "@/components/projects/template-step";
 import { SpreadsheetStep } from "@/components/projects/spreadsheet-step";
 import { MappingEditor } from "@/components/certificate-editor/mapping-editor";
+import { EmailStep } from "@/components/email/email-step";
 
 export default async function ProjectPage({
   params,
@@ -35,8 +38,9 @@ export default async function ProjectPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ step?: string | string[] }>;
 }) {
-  const userId = await getSessionUserId();
-  if (!userId) notFound();
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) redirect("/login");
 
   const { id } = await params;
   const project = await getOwnedProject(id, userId);
@@ -60,6 +64,7 @@ export default async function ProjectPage({
     2: !!project.template,
     3: counts.valid > 0,
     4: parseStoredMapping(project.template?.fieldMapping).fields.length > 0,
+    5: !!(project.emailSubject && project.emailBody),
   };
 
   // The spreadsheet is only parsed when the spreadsheet step is open.
@@ -96,6 +101,17 @@ export default async function ProjectPage({
     (blocked === "template"
       ? "Upload a certificate template first."
       : "Save at least one valid participant first.");
+
+  // The email data is only loaded when the email step is open.
+  let emailResult: EmailContextResult | null = null;
+  let emailError = "";
+  if (current === 5) {
+    try {
+      emailResult = await getEmailContext(userId, project.id);
+    } catch {
+      emailError = "The email editor could not be loaded. Please try again.";
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -162,6 +178,32 @@ export default async function ProjectPage({
                 className={buttonVariants()}
               >
                 {blocked === "template" ? "Go to Template" : "Go to Spreadsheet"}
+              </Link>
+            </CardContent>
+          </Card>
+        ))}
+
+      {current === 5 &&
+        (emailResult?.ok ? (
+          <EmailStep
+            projectId={project.id}
+            context={emailResult.data}
+            defaultTestEmail={session?.user?.email ?? ""}
+          />
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Email</CardTitle>
+              <CardDescription>
+                {emailError || "Save at least one valid participant first."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link
+                href={`/projects/${project.id}?step=3`}
+                className={buttonVariants()}
+              >
+                Go to Spreadsheet
               </Link>
             </CardContent>
           </Card>

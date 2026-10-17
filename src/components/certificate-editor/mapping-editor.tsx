@@ -451,6 +451,14 @@ export function MappingEditor({ projectId, context }: Props) {
           <Button onClick={handleSave} disabled={!dirty || saving}>
             {saving ? "Saving..." : "Save Mapping"}
           </Button>
+                    {!dirty && fields.length > 0 && (
+            <Link
+              href={`/projects/${projectId}?step=5`}
+              className={buttonVariants()}
+            >
+              Continue
+            </Link>
+          )}
         </div>
       </div>
     </div>

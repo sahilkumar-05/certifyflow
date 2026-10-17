@@ -28,6 +28,12 @@ export function Navbar({ userName, userEmail }: NavbarProps) {
             >
               Dashboard
             </Link>
+                        <Link
+              href="/settings/smtp"
+              className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+            >
+              Email Settings
+            </Link>
           </nav>
         </div>
 
