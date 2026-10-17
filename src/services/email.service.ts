@@ -23,7 +23,7 @@ import {
 // Errors of this type have messages that are safe to show to the user.
 export class EmailValidationError extends Error {}
 
-async function firstRowColumns(projectId: string): Promise<string[]> {
+export async function firstRowColumns(projectId: string): Promise<string[]> {
   const first = await prisma.participant.findFirst({
     where: { projectId },
     select: { rowData: true },
@@ -33,7 +33,7 @@ async function firstRowColumns(projectId: string): Promise<string[]> {
 }
 
 // Every placeholder must exist, so "{{Typo}}" never reaches a real email.
-function assertKnownPlaceholders(content: EmailContentInput, columns: string[]) {
+export function assertKnownPlaceholders(content: EmailContentInput, columns: string[]) {
   const allowed = [...columns, ...RESERVED_PLACEHOLDERS];
   const unknown = [
     ...new Set([

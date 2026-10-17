@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { DuplicateButton } from "@/components/projects/duplicate-button";
 import type { ReviewContext } from "@/types/review";
 import { GenerationPanel } from "./generation-panel";
+import { SendPanel } from "./send-panel";
 
 // pdf.js needs the browser, so the preview is never rendered on the server.
 const PdfPreview = dynamic(
@@ -212,14 +213,33 @@ export function ReviewStep({ projectId, context }: Props) {
         canGenerate={canGenerate}
         hasSentEmails={context.hasSentEmails}
       />
-
-      <div className="flex justify-start">
+      <SendPanel
+        key={`${context.progress.generated}:${context.progress.failed}`}
+        projectId={projectId}
+        initial={context.emailProgress}
+        generationRemaining={context.progress.remaining}
+        smtpLabel={smtp ? `${smtp.senderName} <${smtp.username}>` : null}
+        emailSubject={context.emailSubject}
+        emailSaved={context.emailSaved}
+        showResultsLink={
+          context.emailProgress.sent + context.emailProgress.failed > 0
+        }
+      />
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <Link
           href={`/projects/${projectId}?step=5`}
           className={buttonVariants({ variant: "outline" })}
         >
           Back
         </Link>
+        {context.progress.generated + context.progress.failed > 0 && (
+          <Link
+            href={`/projects/${projectId}/results`}
+            className={buttonVariants({ variant: "outline" })}
+          >
+            View Results
+          </Link>
+        )}
       </div>
     </div>
   );

@@ -145,6 +145,17 @@ export function ProjectsList({ projects }: { projects: ProjectRow[] }) {
                         >
                           View
                         </Link>
+                                                {p.status !== "DRAFT" && (
+                          <Link
+                            href={`/projects/${p.id}/results`}
+                            className={buttonVariants({
+                              variant: "outline",
+                              size: "sm",
+                            })}
+                          >
+                            Results
+                          </Link>
+                        )}
                         <DuplicateButton projectId={p.id} />
                         <Button
                           variant="outline"

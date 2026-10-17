@@ -14,6 +14,20 @@ export type BatchResult = GenerationProgress & {
   processed: number;
 };
 
+export type EmailProgress = {
+  // Generated certificates of valid participants (the ones that can be emailed).
+  total: number;
+  sent: number;
+  failed: number;
+  // Generated certificates whose email has not been sent yet.
+  remaining: number;
+};
+
+export type SendBatchResult = EmailProgress & {
+  // How many emails this request handled.
+  processed: number;
+};
+
 export type ReviewContext = {
   projectName: string;
   eventName: string;
@@ -28,5 +42,6 @@ export type ReviewContext = {
   emailSaved: boolean;
   participants: { id: string; name: string }[];
   progress: GenerationProgress;
+  emailProgress: EmailProgress;
   hasSentEmails: boolean;
 };

@@ -124,7 +124,7 @@ export function GenerationPanel({
         <CardTitle className="text-lg">Generate Certificates</CardTitle>
         <CardDescription>
           Certificates are created from your saved field mapping, in small
-          batches. Nothing is emailed from this page yet.
+          batches. Emails are sent separately in the next section.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
