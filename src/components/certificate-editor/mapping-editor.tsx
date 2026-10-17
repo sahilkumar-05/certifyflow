@@ -53,7 +53,8 @@ export function MappingEditor({ projectId, context }: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-
+  const [compare, setCompare] = useState(false);
+  const [version, setVersion] = useState(0);
   const participant = useMemo(
     () => context.participants.find((p) => p.id === participantId) ?? null,
     [context.participants, participantId]
@@ -61,7 +62,10 @@ export function MappingEditor({ projectId, context }: Props) {
 
   const selected = fields.find((f) => f.id === selectedId) ?? null;
   const dirty = JSON.stringify(fields) !== savedJson;
-
+  // Compare mode needs the saved mapping, because the server uses the saved copy.
+  const canCompare = !dirty && fields.length > 0 && !!participant;
+  const comparing = compare && canCompare;
+  const sampleUrl = `/api/projects/${projectId}/sample?participantId=${encodeURIComponent(participantId)}&v=${version}`;
   // For each column: how many participants have no value in it.
   const emptyByColumn = useMemo(() => {
     const out: Record<string, number> = {};
@@ -193,6 +197,7 @@ export function MappingEditor({ projectId, context }: Props) {
         return;
       }
       setSavedJson(JSON.stringify(fields));
+            setVersion((v) => v + 1);
       setMessage("Mapping saved.");
       router.refresh();
     } catch {
@@ -339,11 +344,49 @@ export function MappingEditor({ projectId, context }: Props) {
                 show their placeholder here and would be blank on the certificate.
               </p>
             )}
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={comparing ? "default" : "outline"}
+                disabled={!canCompare}
+                onClick={() => setCompare((c) => !c)}
+              >
+                {comparing ? "Hide PDF comparison" : "Compare with generated PDF"}
+              </Button>
+              {canCompare && (
+                <a
+                  href={sampleUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={buttonVariants({ variant: "outline", size: "sm" })}
+                >
+                  Open sample PDF
+                </a>
+              )}
+              {!canCompare && (
+                <p className="text-xs text-gray-500">
+                  Save the mapping with at least one field to compare it with
+                  the generated PDF.
+                </p>
+              )}
+            </div>
 
+            {comparing && (
+              <p className="text-xs text-gray-500">
+                Black text is the generated PDF. Red text is the editor
+                preview. They should sit exactly on top of each other.
+              </p>
+            )}
             <div className="rounded-lg bg-gray-100 p-3">
               <CertificateCanvas
-                fileUrl={`/api/projects/${projectId}/template/file`}
-                pageNumber={context.page.pageNumber}
+                fileUrl={
+                  comparing
+                    ? sampleUrl
+                    : `/api/projects/${projectId}/template/file`
+                }
+                pageNumber={comparing ? 1 : context.page.pageNumber}
+                ghost={comparing}
                 page={{ width: context.page.width, height: context.page.height }}
                 fields={fields}
                 selectedId={selectedId}

@@ -8,7 +8,7 @@ import { getSheetInfo } from "@/services/participant.service";
 // Errors of this type have messages that are safe to show to the user.
 export class MappingValidationError extends Error {}
 
-function toStringRecord(value: Prisma.JsonValue): Record<string, string> {
+export function toStringRecord(value: Prisma.JsonValue): Record<string, string> {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   return Object.fromEntries(
     Object.entries(value).map(([k, v]) => [k, v == null ? "" : String(v)])

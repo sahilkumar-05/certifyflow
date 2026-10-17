@@ -80,3 +80,30 @@ export function textPlacement(page: PageSize, input: TextPlacementInput): Point 
 
   return { x, y: page.height - baselineFromTop };
 }
+export type Rotation = 0 | 90 | 180 | 270;
+
+export function normalizeRotation(angle: number): Rotation {
+  const a = ((Math.round(angle) % 360) + 360) % 360;
+  return a === 90 || a === 180 || a === 270 ? a : 0;
+}
+
+// Converts a point on the VISIBLE page (PDF points, bottom-left origin) to the
+// coordinates of the unrotated page content, and returns the angle the text
+// must be rotated by so it reads upright on the visible page.
+// `raw` is the size of the unrotated page.
+export function visibleToRaw(
+  p: Point,
+  raw: PageSize,
+  rotation: Rotation
+): Point & { angle: Rotation } {
+  switch (rotation) {
+    case 90:
+      return { x: raw.width - p.y, y: p.x, angle: 90 };
+    case 180:
+      return { x: raw.width - p.x, y: raw.height - p.y, angle: 180 };
+    case 270:
+      return { x: p.y, y: raw.height - p.x, angle: 270 };
+    default:
+      return { x: p.x, y: p.y, angle: 0 };
+  }
+}

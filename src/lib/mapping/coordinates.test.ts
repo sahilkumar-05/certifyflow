@@ -3,12 +3,14 @@ import {
   baselineOffsetEm,
   clamp01,
   displayHeight,
+  normalizeRotation,
   normalizedToPdf,
   normalizedToPixels,
   pdfToNormalized,
   pixelsToNormalized,
   pointsToPixels,
   textPlacement,
+  visibleToRaw,
 } from "./coordinates";
 
 const A4_LANDSCAPE = { width: 841.89, height: 595.28 };
@@ -84,5 +86,34 @@ describe("text placement", () => {
     // top = 100 from top, baseline = 100 + 20 * 0.85 = 117 from top
     const { y } = textPlacement(page, { ...base, alignment: "left" });
     expect(y).toBeCloseTo(500 - 117);
+  });
+});
+
+describe("page rotation", () => {
+  const raw = { width: 600, height: 400 };
+
+  it("normalizes angles", () => {
+    expect(normalizeRotation(-90)).toBe(270);
+    expect(normalizeRotation(450)).toBe(90);
+    expect(normalizeRotation(45)).toBe(0);
+  });
+
+  it("leaves unrotated pages unchanged", () => {
+    expect(visibleToRaw({ x: 10, y: 20 }, raw, 0)).toEqual({ x: 10, y: 20, angle: 0 });
+  });
+
+  it("maps visible corners for 90 degrees", () => {
+    // Visible page is 400 wide and 600 high.
+    expect(visibleToRaw({ x: 0, y: 0 }, raw, 90)).toEqual({ x: 600, y: 0, angle: 90 });
+    expect(visibleToRaw({ x: 0, y: 600 }, raw, 90)).toEqual({ x: 0, y: 0, angle: 90 });
+  });
+
+  it("maps visible corners for 180 degrees", () => {
+    expect(visibleToRaw({ x: 0, y: 0 }, raw, 180)).toEqual({ x: 600, y: 400, angle: 180 });
+  });
+
+  it("maps visible corners for 270 degrees", () => {
+    expect(visibleToRaw({ x: 0, y: 0 }, raw, 270)).toEqual({ x: 0, y: 400, angle: 270 });
+    expect(visibleToRaw({ x: 400, y: 0 }, raw, 270)).toEqual({ x: 0, y: 0, angle: 270 });
   });
 });

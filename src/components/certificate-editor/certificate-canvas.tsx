@@ -28,6 +28,7 @@ type FieldBoxProps = {
   text: string;
   hasValue: boolean;
   selected: boolean;
+  ghost: boolean;
   page: PageSize;
   width: number;
   height: number;
@@ -41,6 +42,7 @@ function FieldBox({
   text,
   hasValue,
   selected,
+  ghost,
   page,
   width,
   height,
@@ -62,7 +64,7 @@ function FieldBox({
 
   const fontPx = pointsToPixels(field.fontSize, page, width);
 
-  // Same rule the PDF generator will use: shrink the font so text fits the max width.
+  // Same rule the PDF generator uses: shrink the font so text fits the max width.
   const naturalPt = (natural * page.width) / width;
   const maxPt = field.width === null ? null : field.width * page.width;
   const fitted = fitFontSize(field.fontSize, naturalPt, maxPt);
@@ -70,7 +72,7 @@ function FieldBox({
 
   return (
     <>
-      {selected && field.width !== null && (
+      {selected && !ghost && field.width !== null && (
         <div
           style={{
             position: "absolute",
@@ -87,7 +89,7 @@ function FieldBox({
       <div
         ref={ref}
         role="button"
-        tabIndex={0}
+        tabIndex={ghost ? -1 : 0}
         aria-label={`Field ${field.label}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -102,16 +104,20 @@ function FieldBox({
           fontFamily: `"${field.fontFamily}", sans-serif`,
           fontSize: fontPx,
           lineHeight: 1,
-          color: field.color,
+          // The PDF generator does not apply kerning, so the preview must not either.
+          fontKerning: "none",
+          color: ghost ? "#ef4444" : field.color,
           whiteSpace: "nowrap",
           cursor: "move",
           touchAction: "none",
           userSelect: "none",
           zIndex: selected ? 2 : 1,
-          opacity: hasValue ? 1 : 0.55,
-          outline: selected
-            ? "2px solid #4f46e5"
-            : "1px dashed rgba(79,70,229,0.4)",
+          opacity: ghost ? 0.75 : hasValue ? 1 : 0.55,
+          outline: ghost
+            ? "none"
+            : selected
+              ? "2px solid #4f46e5"
+              : "1px dashed rgba(79,70,229,0.4)",
           outlineOffset: 3,
         }}
       >
@@ -129,6 +135,8 @@ type Props = {
   selectedId: string | null;
   // Values of the participant currently used for the preview.
   sampleValues: Record<string, string>;
+  // Comparison mode: fields are drawn in red and cannot be edited.
+  ghost?: boolean;
   onSelect: (id: string | null) => void;
   onMove: (id: string, x: number, y: number) => void;
   onDropColumn: (column: string, x: number, y: number) => void;
@@ -150,6 +158,7 @@ export function CertificateCanvas({
   fields,
   selectedId,
   sampleValues,
+  ghost = false,
   onSelect,
   onMove,
   onDropColumn,
@@ -171,6 +180,11 @@ export function CertificateCanvas({
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  // A new file means a new chance to load, so an old error is cleared.
+  useEffect(() => {
+    setError("");
+  }, [fileUrl]);
 
   const width = Math.min(containerWidth, MAX_DISPLAY_WIDTH);
   const height = width > 0 ? displayHeight(page, width) : 0;
@@ -244,6 +258,7 @@ export function CertificateCanvas({
             <div
               className="absolute inset-0"
               style={{
+                pointerEvents: ghost ? "none" : undefined,
                 boxShadow: dropActive ? "inset 0 0 0 3px #4f46e5" : undefined,
               }}
               onPointerDown={(e) => {
@@ -285,6 +300,7 @@ export function CertificateCanvas({
                     text={text}
                     hasValue={hasValue}
                     selected={f.id === selectedId}
+                    ghost={ghost}
                     page={page}
                     width={width}
                     height={height}
