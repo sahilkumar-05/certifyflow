@@ -125,6 +125,8 @@ model Certificate {
   filePath         String?
   referenceNumber  String?
   generationStatus GenerationStatus @default(PENDING)
+  generationError  String?
+  warnings         String?
   emailStatus      EmailStatus      @default(PENDING)
   emailError       String?
   createdAt        DateTime         @default(now())

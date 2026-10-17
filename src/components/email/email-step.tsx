@@ -422,9 +422,7 @@ export function EmailStep({ projectId, context, defaultTestEmail }: Props) {
         <div className="flex items-center gap-3">
           {saveError && <p className="text-sm text-red-600">{saveError}</p>}
           {!saveError && saveMessage && !dirty && (
-            <p className="text-sm text-green-700">
-              {saveMessage} The review and send step will be available in the next update.
-            </p>
+            <p className="text-sm text-green-700">{saveMessage}</p>
           )}
           {!saveError && dirty && (
             <p className="text-sm text-amber-700">
@@ -434,6 +432,14 @@ export function EmailStep({ projectId, context, defaultTestEmail }: Props) {
           <Button onClick={handleSave} disabled={!dirty || !contentValid || saving}>
             {saving ? "Saving..." : "Save Email"}
           </Button>
+                    {savedJson !== "" && !dirty && (
+            <Link
+              href={`/projects/${projectId}?step=6`}
+              className={buttonVariants()}
+            >
+              Continue
+            </Link>
+          )}
         </div>
       </div>
     </div>

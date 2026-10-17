@@ -1,3 +1,4 @@
+import { parseStoredMapping } from "@/lib/mapping/parse";
 import { Prisma, type ValidationStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { storage } from "@/lib/storage";
@@ -17,7 +18,15 @@ const INVALID_SAMPLE = 25;
 
 const spreadsheetKey = (projectId: string, kind: string) =>
   `projects/${projectId}/spreadsheet.${kind}`;
-
+// Replacing participants would delete their certificates (cascade), so it is blocked.
+async function assertNoCertificates(projectId: string) {
+  const count = await prisma.certificate.count({ where: { projectId } });
+  if (count > 0) {
+    throw new SpreadsheetValidationError(
+      "This project already has generated certificates. Reset them on the Review step, or duplicate the project to start a new batch."
+    );
+  }
+}
 type SavedMapping = {
   nameColumn: string | null;
   emailColumn: string | null;
@@ -81,9 +90,16 @@ export async function saveSpreadsheet(
 ): Promise<SheetInfo | null> {
   const project = await prisma.project.findFirst({
     where: { id: projectId, userId },
-    select: { spreadsheetPath: true },
+    select: {
+      spreadsheetPath: true,
+      nameColumn: true,
+      emailColumn: true,
+      referenceColumn: true,
+    },
   });
   if (!project) return null;
+
+  await assertNoCertificates(projectId);
 
   const kind = kindFromFileName(fileName);
   if (!kind) {
@@ -100,12 +116,24 @@ export async function saveSpreadsheet(
     await storage.delete(project.spreadsheetPath).catch(() => {});
   }
 
-  // A new file may have different columns, so old data and mapping are reset.
+  // Keep the field mapping for columns that still exist in the new file.
+  const template = await prisma.template.findUnique({
+    where: { projectId },
+    select: { fieldMapping: true },
+  });
+  const keptFields = parseStoredMapping(template?.fieldMapping).fields.filter((f) =>
+    sheet.headers.includes(f.source)
+  );
+  const keptMapping =
+    keptFields.length > 0
+      ? ({ version: 1, fields: keptFields } as unknown as Prisma.InputJsonObject)
+      : Prisma.DbNull;
+
   await prisma.$transaction([
     prisma.participant.deleteMany({ where: { projectId } }),
     prisma.template.updateMany({
       where: { projectId },
-      data: { fieldMapping: Prisma.DbNull },
+      data: { fieldMapping: keptMapping },
     }),
     prisma.project.update({
       where: { id: projectId },
@@ -113,14 +141,12 @@ export async function saveSpreadsheet(
         spreadsheetPath: key,
         spreadsheetName: fileName,
         sheetName: sheet.sheetName || null,
-        nameColumn: null,
-        emailColumn: null,
-        referenceColumn: null,
       },
     }),
   ]);
 
-  return buildInfo(fileName, opened, sheet);
+  // Earlier column choices are suggested again when the new file has the same columns.
+  return buildInfo(fileName, opened, sheet, project);
 }
 
 // Returns null if there is no spreadsheet owned by the user.
@@ -200,7 +226,7 @@ export async function saveParticipants(
 ): Promise<ValidationSummary | null> {
   const loaded = await loadValidated(userId, projectId, input);
   if (!loaded) return null;
-
+  await assertNoCertificates(projectId);
   const summary = summarize(loaded.validated);
   if (summary.validCount === 0) {
     throw new SpreadsheetValidationError(

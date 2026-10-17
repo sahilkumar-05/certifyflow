@@ -1,5 +1,5 @@
 "use client";
-
+import { DuplicateButton } from "@/components/projects/duplicate-button";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -145,6 +145,7 @@ export function ProjectsList({ projects }: { projects: ProjectRow[] }) {
                         >
                           View
                         </Link>
+                        <DuplicateButton projectId={p.id} />
                         <Button
                           variant="outline"
                           size="sm"

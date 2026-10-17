@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { getReviewContext } from "@/services/review.service";
+import type { ReviewContext } from "@/types/review";
+import { ReviewStep } from "@/components/review/review-step";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
@@ -112,6 +115,16 @@ export default async function ProjectPage({
       emailError = "The email editor could not be loaded. Please try again.";
     }
   }
+    // The review data is only loaded when the review step is open.
+  let review: ReviewContext | null = null;
+  let reviewError = "";
+  if (current === 6) {
+    try {
+      review = await getReviewContext(userId, project.id);
+    } catch {
+      reviewError = "The review could not be loaded. Please try again.";
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -206,6 +219,19 @@ export default async function ProjectPage({
                 Go to Spreadsheet
               </Link>
             </CardContent>
+          </Card>
+        ))}
+              {current === 6 &&
+        (review ? (
+          <ReviewStep projectId={project.id} context={review} />
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Review</CardTitle>
+              <CardDescription>
+                {reviewError || "The review could not be loaded."}
+              </CardDescription>
+            </CardHeader>
           </Card>
         ))}
     </div>

@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { storage } from "@/lib/storage";
 import type { ProjectInput } from "@/lib/validation/project";
@@ -78,4 +79,71 @@ export async function deleteOwnedProject(projectId: string, userId: string) {
     // The database rows are already gone. Orphaned files can be cleaned later.
   }
   return true;
+}
+// Copies the template, field mapping and email text into a new project.
+// Participants, spreadsheet and certificates are not copied.
+// Returns null if the project is not owned by the user.
+export async function duplicateOwnedProject(projectId: string, userId: string) {
+  const source = await prisma.project.findFirst({
+    where: { id: projectId, userId },
+    select: {
+      name: true,
+      eventName: true,
+      description: true,
+      emailSubject: true,
+      emailBody: true,
+      template: {
+        select: {
+          filePath: true,
+          originalFileName: true,
+          pageNumber: true,
+          pageWidth: true,
+          pageHeight: true,
+          fieldMapping: true,
+        },
+      },
+    },
+  });
+  if (!source) return null;
+
+  const copy = await prisma.project.create({
+    data: {
+      userId,
+      name: `${source.name} (copy)`.slice(0, 100),
+      eventName: source.eventName,
+      description: source.description,
+      emailSubject: source.emailSubject,
+      emailBody: source.emailBody,
+    },
+    select: { id: true },
+  });
+
+  if (source.template) {
+    try {
+      const bytes = await storage.read(source.template.filePath);
+      const key = `projects/${copy.id}/template.pdf`;
+      await storage.save(key, new Uint8Array(bytes));
+
+      const mapping = source.template.fieldMapping;
+      await prisma.template.create({
+        data: {
+          projectId: copy.id,
+          filePath: key,
+          originalFileName: source.template.originalFileName,
+          pageNumber: source.template.pageNumber,
+          pageWidth: source.template.pageWidth,
+          pageHeight: source.template.pageHeight,
+          fieldMapping:
+            mapping === null ? Prisma.DbNull : (mapping as Prisma.InputJsonValue),
+        },
+      });
+    } catch (err) {
+      // Do not leave a half-copied project behind.
+      await prisma.project.deleteMany({ where: { id: copy.id, userId } });
+      await storage.deletePrefix(`projects/${copy.id}`).catch(() => {});
+      throw err;
+    }
+  }
+
+  return copy;
 }

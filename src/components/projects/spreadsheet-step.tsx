@@ -333,8 +333,9 @@ export function SpreadsheetStep({
             )}
 
             <p className="text-xs text-gray-500">
-              Replacing the file removes the saved participants and the field
-              mapping, because the columns may change.
+              Replacing the file removes the saved participants. Your field
+              mapping and email text are kept for columns that still exist in
+              the new file.
             </p>
           </div>
         )}
